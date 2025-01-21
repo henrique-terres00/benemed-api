@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import planRoutes from './routes/planRoutes';
+import partnerRoutes from './routes/partnerRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 // Carrega as variáveis de ambiente
 dotenv.config();
@@ -19,6 +21,8 @@ app.use(express.json());
 
 // Rotas
 app.use('/api/plans', planRoutes);
+app.use('/api/partners', partnerRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Rota de healthcheck
 app.get('/health', (_req: Request, res: Response) => {

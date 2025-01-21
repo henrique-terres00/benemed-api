@@ -2,14 +2,38 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Enums
-CREATE TYPE user_role AS ENUM ('admin', 'customer');
-CREATE TYPE subscription_status AS ENUM ('active', 'pending', 'cancelled', 'expired');
-CREATE TYPE plan_type AS ENUM ('individual', 'family');
-CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
-CREATE TYPE payment_method AS ENUM ('credit_card', 'debit', 'bank_transfer');
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('admin', 'customer');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE subscription_status AS ENUM ('active', 'pending', 'cancelled', 'expired');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE plan_type AS ENUM ('individual', 'family');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_method AS ENUM ('credit_card', 'debit', 'bank_transfer');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -21,7 +45,7 @@ CREATE TABLE users (
 );
 
 -- Addresses table
-CREATE TABLE addresses (
+CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     street VARCHAR(255) NOT NULL,
@@ -35,7 +59,7 @@ CREATE TABLE addresses (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Trigger para garantir apenas um endereço principal por usuário
+-- Trigger para garantir apenas um endereço principal
 CREATE OR REPLACE FUNCTION ensure_single_main_address()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -49,13 +73,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS ensure_single_main_address_trigger ON addresses;
 CREATE TRIGGER ensure_single_main_address_trigger
     BEFORE INSERT OR UPDATE ON addresses
     FOR EACH ROW
     EXECUTE FUNCTION ensure_single_main_address();
 
 -- Plans table
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     type plan_type NOT NULL,
@@ -69,7 +94,7 @@ CREATE TABLE plans (
 );
 
 -- Subscriptions table
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     plan_id UUID REFERENCES plans(id),
@@ -86,7 +111,7 @@ CREATE TABLE subscriptions (
 );
 
 -- Dependents table
-CREATE TABLE dependents (
+CREATE TABLE IF NOT EXISTS dependents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -97,7 +122,7 @@ CREATE TABLE dependents (
 );
 
 -- Transactions table
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
     amount DECIMAL(10,2) NOT NULL,
@@ -110,7 +135,7 @@ CREATE TABLE transactions (
 );
 
 -- Benefit usage table
-CREATE TABLE benefit_usage (
+CREATE TABLE IF NOT EXISTS benefit_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
     dependent_id UUID REFERENCES dependents(id) ON DELETE SET NULL,
@@ -123,6 +148,25 @@ CREATE TABLE benefit_usage (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Partners table
+CREATE TABLE IF NOT EXISTS partners (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    state VARCHAR(2) NOT NULL,
+    crm VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Trigger para atualizar o updated_at dos partners
+CREATE TRIGGER IF NOT EXISTS update_partners_updated_at
+    BEFORE UPDATE ON partners
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -132,29 +176,29 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_users_updated_at
+CREATE TRIGGER IF NOT EXISTS update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_plans_updated_at
+CREATE TRIGGER IF NOT EXISTS update_plans_updated_at
     BEFORE UPDATE ON plans
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_subscriptions_updated_at
+CREATE TRIGGER IF NOT EXISTS update_subscriptions_updated_at
     BEFORE UPDATE ON subscriptions
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Indexes
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_cpf ON users(cpf);
-CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
-CREATE INDEX idx_transactions_subscription_id ON transactions(subscription_id);
-CREATE INDEX idx_transactions_status ON transactions(status);
-CREATE INDEX idx_benefit_usage_subscription_id ON benefit_usage(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_cpf ON users(cpf);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_subscription_id ON transactions(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_benefit_usage_subscription_id ON benefit_usage(subscription_id);
 
 -- Initial data for plans
 INSERT INTO plans (name, type, category, is_family, price, features) VALUES
