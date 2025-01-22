@@ -7,7 +7,7 @@ const router = express.Router();
 // Rota pública para cadastro de parceiros
 router.post('/', async (req, res) => {
   try {
-    const { name, businessName, email, phone, city, state, cnpj } = req.body;
+    const { name, companyName, email, phone, city, state, cnpj } = req.body;
 
     // Validação do tamanho dos campos
     if (phone.length !== 11) {
@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
       .insert([
         { 
           name, 
-          business_name: businessName, 
+          company_name: companyName, 
           email, 
           phone, 
           city, 
@@ -54,7 +54,7 @@ router.get('/admin', authenticateAdmin, async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error('Error fetching partners:', error);
+    console.error('Error listing partners:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
