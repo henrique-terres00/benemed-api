@@ -24,9 +24,12 @@ app.use('/api/business-plans', businessPlanRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Rota de healthcheck
-app.get('/api/health', (_req, res) => {
+// Rotas de healthcheck (ambas para garantir compatibilidade)
+const healthCheck = (_req: express.Request, res: express.Response) => {
   res.json({ status: 'ok' });
-});
+};
+
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 export default app;
